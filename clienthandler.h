@@ -4,7 +4,7 @@
 #include <QObject>
 #include <QTcpSocket>
 #include <QSqlDatabase>
-#include <nlohmann/json.hpp>
+#include <json.hpp>
 
 using json = nlohmann::json;
 
