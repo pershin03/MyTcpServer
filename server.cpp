@@ -28,7 +28,7 @@ void Server::onNewConnection()
     ClientHandler* handler = new ClientHandler(socket);
     handler->moveToThread(thread);
 
-    // connects
+    //    connects
 
     thread->start();
 }
