@@ -3,6 +3,10 @@
 
 #include <QObject>
 #include <QTcpSocket>
+#include <QSqlDatabase>
+#include <nlohmann/json.hpp>
+
+using json = nlohmann::json;
 
 class ClientHandler : public QObject
 {
@@ -18,6 +22,7 @@ signals:
     void finished();
 private:
     QTcpSocket *m_socket;
+    QSqlDatabase m_db;
 };
 
 #endif // CLIENTHANDLER_H

@@ -10,6 +10,8 @@ class Server : public QObject
 public:
     explicit Server(QObject *parent = nullptr);
     bool startServer(quint16 port);
+private slots:
+    void onNewConnection();
 private:
     QTcpServer* m_server;
 signals:
