@@ -23,6 +23,13 @@ signals:
 private:
     QTcpSocket *m_socket;
     QSqlDatabase m_db;
+    QByteArray m_buffer;
+
+    void processJson(const json& j);
+    void handleAddUser(const json& j);
+    void handleGetAllUsers();
+    void sendResponse(const json& j);
+    void initDatabase();
 };
 
 #endif // CLIENTHANDLER_H
