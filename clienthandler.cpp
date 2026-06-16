@@ -6,24 +6,27 @@
 ClientHandler::ClientHandler(QTcpSocket *socket, QObject *parent)
     : QObject(parent), m_socket(socket)
 {
-    QString connName = "db_conn_" + QString::number((quintptr)QThread::currentThreadId());
-    m_db = QSqlDatabase::addDatabase("QSQLITE", connName);
-    m_db.setDatabaseName("users.db");
 }
 
 ClientHandler::~ClientHandler()
 {
-    if(m_socket) m_socket->deleteLater();
     QString connName = m_db.connectionName();
+    if (m_db.isOpen()) m_db.close();
     m_db = QSqlDatabase();
     QSqlDatabase::removeDatabase(connName);
+    qDebug() << "Thread cleaned. Connection " << connName << " deleted.";
 }
 
 void ClientHandler::startProcessing()
 {
-    initDatabase();
+    connect(m_socket, &QTcpSocket::disconnected, &QTcpSocket::deleteLater);
     connect(m_socket, &QTcpSocket::readyRead, this, &ClientHandler::onReadyRead);
     connect(m_socket, &QTcpSocket::disconnected, this, &ClientHandler::onDisconnected);
+
+    QString connName = "db_conn_" + QString::number((quintptr)QThread::currentThreadId());
+    m_db = QSqlDatabase::addDatabase("QSQLITE", connName);
+    m_db.setDatabaseName("users.db");
+    initDatabase();
 }
 
 void ClientHandler::onReadyRead()
@@ -31,7 +34,7 @@ void ClientHandler::onReadyRead()
     m_buffer.append(m_socket->readAll());
     while(m_buffer.contains('\n'))
     {
-        int separatorIndex = 0;
+        int separatorIndex = m_buffer.indexOf('\n');
         QByteArray command = m_buffer.left(separatorIndex);
         m_buffer.remove(0, separatorIndex + 1);
 
@@ -73,17 +76,63 @@ void ClientHandler::processJson(const json &j)
 
 void ClientHandler::handleAddUser(const json &j)
 {
-    //work with database
+    json res;
+    std::string username = j.value("username", "");
+    std::string email = j.value("email", "");
+
+    // возможно добавить проверку на пустые строки.
+
+    QSqlQuery query(m_db);
+    query.prepare("INSERT INTO users (username, email) VALUES (:name, :email)");
+    query.bindValue(":name", QString::fromStdString(username));
+    query.bindValue(":email", QString::fromStdString(username));
+
+    if(query.exec())
+    {
+        res["status"] = "success";
+        res["message"] = "User added successfully";
+    }
+    else
+    {
+        res["status"] = "error";
+        res["message"] = query.lastError().text().toStdString();
+    }
+    sendResponse(res);
 }
 
 void ClientHandler::handleGetAllUsers()
 {
+    json res;
+    QSqlQuery query(m_db);
 
+    if (query.exec("SELECT id, username, email FROM users"))
+    {
+        res["status"] = "success";
+        res["users"] = json::array();
+        while (query.next()) {
+            json user;
+            user["id"] = query.value(0).toInt();
+            user["username"] = query.value(1).toString().toStdString();
+            user["email"] = query.value(2).toString().toStdString();
+            res["users"].push_back(user);
+        }
+    }
+    else
+    {
+        res["status"] = "error";
+        res["message"] = query.lastError().text().toStdString();
+    }
+    sendResponse(res);
 }
 
 void ClientHandler::sendResponse(const json &j)
 {
-
+    if (m_socket && m_socket->isOpen())
+    {
+        std::string responseStr = j.dump() + "\n";
+        m_socket->write(responseStr.c_str(), responseStr.length());
+        m_socket->flush();
+    }
 }
 
 void ClientHandler::initDatabase()
@@ -98,5 +147,5 @@ void ClientHandler::initDatabase()
     query.exec("CREATE TABLE IF NOT EXISTS users("
                "id INTEGER PRIMARY KEY AUTOINCREMENT,"
                "username TEXT NOT NULL,"
-               "email TEXT NOT NULL");
+               "email TEXT NOT NULL UNIQUE");
 }
