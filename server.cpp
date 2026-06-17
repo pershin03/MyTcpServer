@@ -24,10 +24,13 @@ bool Server::startServer(quint16 port)
 void Server::onNewConnection()
 {
     QTcpSocket* socket = m_server->nextPendingConnection();
+    if (!socket) return;
+
     socket->setParent(nullptr);
 
     QThread* thread = new QThread();
     ClientHandler* handler = new ClientHandler(socket);
+    socket->moveToThread(thread);
     handler->moveToThread(thread);
 
     connect(thread, &QThread::started, handler, &ClientHandler::startProcessing);

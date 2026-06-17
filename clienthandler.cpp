@@ -125,9 +125,9 @@ void ClientHandler::handleAddUser(const json &j)
     // возможно добавить проверку на пустые строки.
 
     QSqlQuery query(m_db);
-    query.prepare("INSERT INTO users (username, email) VALUES (:name, :email)");
-    query.bindValue(":name", QString::fromStdString(username));
-    query.bindValue(":email", QString::fromStdString(username));
+    query.prepare("INSERT INTO users (username, email) VALUES (:username, :email)");
+    query.bindValue("username", QString::fromStdString(username));
+    query.bindValue("email", QString::fromStdString(email));
 
     if(query.exec())
     {
