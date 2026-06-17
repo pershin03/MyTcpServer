@@ -19,7 +19,7 @@ ClientHandler::~ClientHandler()
 
 void ClientHandler::startProcessing()
 {
-    connect(m_socket, &QTcpSocket::disconnected, &QTcpSocket::deleteLater);
+    connect(m_socket, &QTcpSocket::disconnected, m_socket, &QTcpSocket::deleteLater);
     connect(m_socket, &QTcpSocket::readyRead, this, &ClientHandler::onReadyRead);
     connect(m_socket, &QTcpSocket::disconnected, this, &ClientHandler::onDisconnected);
 
