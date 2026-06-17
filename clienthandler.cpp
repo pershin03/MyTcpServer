@@ -41,7 +41,7 @@ void ClientHandler::startProcessing()
         json res;
         res["status"] = "error";
         res["message"] = "database unavailable";
-
+        sendResponse(res);
         m_socket->disconnectFromHost();
         return;
     }
