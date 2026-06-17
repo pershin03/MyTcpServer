@@ -126,8 +126,8 @@ void ClientHandler::handleAddUser(const json &j)
 
     QSqlQuery query(m_db);
     query.prepare("INSERT INTO users (username, email) VALUES (:username, :email)");
-    query.bindValue("username", QString::fromStdString(username));
-    query.bindValue("email", QString::fromStdString(email));
+    query.bindValue(":username", QString::fromStdString(username));
+    query.bindValue(":email", QString::fromStdString(email));
 
     if(query.exec())
     {
@@ -189,10 +189,10 @@ bool ClientHandler::initDatabase()
     }
 
     QSqlQuery query(m_db);
-    if(query.exec("CREATE TABLE IF NOT EXISTS users("
+    if(!query.exec("CREATE TABLE IF NOT EXISTS users("
                "id INTEGER PRIMARY KEY AUTOINCREMENT,"
                "username TEXT NOT NULL,"
-                   "email TEXT NOT NULL UNIQUE"))
+                   "email TEXT NOT NULL UNIQUE)"))
     {
         qCritical() << "Error creating table: " << query.lastError().text();
         return false;
