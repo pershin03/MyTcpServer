@@ -23,14 +23,33 @@ void ClientHandler::startProcessing()
     connect(m_socket, &QTcpSocket::readyRead, this, &ClientHandler::onReadyRead);
     connect(m_socket, &QTcpSocket::disconnected, this, &ClientHandler::onDisconnected);
 
+    m_lastActivity = QDateTime::currentDateTime();
+    m_heartbeatTimer = new QTimer(this);
+    connect(m_heartbeatTimer, &QTimer::timeout, this, [this]() {
+        if (m_lastActivity.secsTo(QDateTime::currentDateTime()) > 15) {
+            qWarning() << "Timeout Heartbeat. Disconnect client.";
+            m_socket->abort();
+        }
+    });
+
+
     QString connName = "db_conn_" + QString::number((quintptr)QThread::currentThreadId());
     m_db = QSqlDatabase::addDatabase("QSQLITE", connName);
     m_db.setDatabaseName("users.db");
-    initDatabase();
+    if(!initDatabase())
+    {
+        json res;
+        res["status"] = "error";
+        res["message"] = "database unavailable";
+
+        m_socket->disconnectFromHost();
+        return;
+    }
 }
 
 void ClientHandler::onReadyRead()
 {
+    resetHeartbeatTimeout();
     m_buffer.append(m_socket->readAll());
     while(m_buffer.contains('\n'))
     {
@@ -48,6 +67,10 @@ void ClientHandler::onReadyRead()
             catch(const json::parse_error& e)
             {
                 qWarning() << "JSON parse error: " << e.what();
+                json errRes;
+                errRes["status"] = "error";
+                errRes["message"] = "Invalid JSON structure";
+                sendResponse(errRes);
             }
         }
 
@@ -59,17 +82,36 @@ void ClientHandler::onDisconnected()
     emit finished();
 }
 
+void ClientHandler::resetHeartbeatTimeout()
+{
+    m_lastActivity = QDateTime::currentDateTime();
+}
+
 void ClientHandler::processJson(const json &j)
 {
     std::string action = j.value("action", "");
 
-    if(action == "add_user")
+    if(action == "ping")
+    {
+        json res;
+        res["status"] = "ok";
+        res["action"] = "pong";
+        sendResponse(res);
+    }
+    else if(action == "add_user")
     {
         handleAddUser(j);
     }
     else if(action == "get_users")
     {
         handleGetAllUsers();
+    }
+    else
+    {
+        json res;
+        res["status"] = "error";
+        res["message"] = "Unknown network command";
+        sendResponse(res);
     }
 
 }
@@ -95,7 +137,10 @@ void ClientHandler::handleAddUser(const json &j)
     else
     {
         res["status"] = "error";
-        res["message"] = query.lastError().text().toStdString();
+        if (query.lastError().text().contains("UNIQUE constraint failed"))
+            res["message"] = "A user with this email already exists";
+        else
+            res["message"] = query.lastError().text().toStdString();
     }
     sendResponse(res);
 }
@@ -135,17 +180,23 @@ void ClientHandler::sendResponse(const json &j)
     }
 }
 
-void ClientHandler::initDatabase()
+bool ClientHandler::initDatabase()
 {
     if(!m_db.open())
     {
         qDebug() << "Connection error for database: " << m_db.lastError().text();
-        return;
+        return false;
     }
 
     QSqlQuery query(m_db);
-    query.exec("CREATE TABLE IF NOT EXISTS users("
+    if(query.exec("CREATE TABLE IF NOT EXISTS users("
                "id INTEGER PRIMARY KEY AUTOINCREMENT,"
                "username TEXT NOT NULL,"
-               "email TEXT NOT NULL UNIQUE");
+                   "email TEXT NOT NULL UNIQUE"))
+    {
+        qCritical() << "Error creating table: " << query.lastError().text();
+        return false;
+    }
+    return true;
 }
+

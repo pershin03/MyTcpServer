@@ -4,6 +4,8 @@
 #include <QObject>
 #include <QTcpSocket>
 #include <QSqlDatabase>
+#include <QTimer>
+#include <QDateTime>
 #include <json.hpp>
 
 using json = nlohmann::json;
@@ -24,6 +26,10 @@ private:
     QTcpSocket *m_socket;
     QSqlDatabase m_db;
     QByteArray m_buffer;
+
+    QTimer *m_heartbeatTimer;
+    QDateTime m_lastActivity;
+    void resetHeartbeatTimeout();
 
     void processJson(const json& j);
     void handleAddUser(const json& j);
