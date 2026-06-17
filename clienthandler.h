@@ -35,7 +35,7 @@ private:
     void handleAddUser(const json& j);
     void handleGetAllUsers();
     void sendResponse(const json& j);
-    void initDatabase();
+    bool initDatabase();
 };
 
 #endif // CLIENTHANDLER_H
