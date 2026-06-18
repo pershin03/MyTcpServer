@@ -33,6 +33,7 @@ private:
     void processJson(const json& j);
     void handleAddUser(const json& j);
     void handleGetAllUsers();
+    void handleDeleteUser(const json& j);
     void sendResponse(const json& j);
     bool initDatabase();
 };

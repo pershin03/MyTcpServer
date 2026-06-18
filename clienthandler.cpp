@@ -99,6 +99,10 @@ void ClientHandler::processJson(const json &j)
     {
         handleGetAllUsers();
     }
+    else if(action == "delete_user")
+    {
+        handleDeleteUser(j);
+    }
     else
     {
         json res;
@@ -137,7 +141,7 @@ void ClientHandler::handleAddUser(const json &j)
     {
         res["status"] = "error";
         if (query.lastError().text().contains("UNIQUE constraint failed"))
-            res["message"] = "A user with this email already exists";
+            res["message"] = "Пользователь с таким email уже существует";
         else
             res["message"] = query.lastError().text().toStdString();
     }
@@ -167,6 +171,47 @@ void ClientHandler::handleGetAllUsers()
         res["message"] = query.lastError().text().toStdString();
     }
     sendResponse(res);
+}
+
+void ClientHandler::handleDeleteUser(const json &j)
+{
+    json res;
+    std::string username = j.value("username", "");
+    std::string email = j.value("email", "");
+
+    if(username.empty() || email.empty())
+    {
+        res["status"] = "error";
+        res["message"] = "Fields cannot be empty!";
+        sendResponse(res);
+        return;
+    }
+
+    QSqlQuery query(m_db);
+    query.prepare("DELETE FROM users WHERE username = :username AND email = :email");
+    query.bindValue(":username", QString::fromStdString(username));
+    query.bindValue(":email", QString::fromStdString(email));
+
+    if (query.exec()) {
+        if (query.numRowsAffected() > 0)
+        {
+            res["status"] = "success";
+            res["message"] = "Пользователь успешно удален из базы данных";
+        }
+        else
+        {
+            res["status"] = "error";
+            res["message"] = "Пользователь с таким именем и email не найден!";
+        }
+    }
+    else
+    {
+        res["status"] = "error";
+        res["message"] = query.lastError().text().toStdString();
+    }
+
+    sendResponse(res);
+
 }
 
 void ClientHandler::sendResponse(const json &j)
