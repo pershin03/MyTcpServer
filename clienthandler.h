@@ -28,8 +28,7 @@ private:
     QByteArray m_buffer;
 
     QTimer *m_heartbeatTimer;
-    QDateTime m_lastActivity;
-    void resetHeartbeatTimeout();
+    int m_heartbeatCount;
 
     void processJson(const json& j);
     void handleAddUser(const json& j);

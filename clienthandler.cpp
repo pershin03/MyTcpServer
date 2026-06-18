@@ -23,14 +23,18 @@ void ClientHandler::startProcessing()
     connect(m_socket, &QTcpSocket::readyRead, this, &ClientHandler::onReadyRead);
     connect(m_socket, &QTcpSocket::disconnected, this, &ClientHandler::onDisconnected);
 
-    m_lastActivity = QDateTime::currentDateTime();
+
+    m_heartbeatCount = 0;
     m_heartbeatTimer = new QTimer(this);
     connect(m_heartbeatTimer, &QTimer::timeout, this, [this]() {
-        if (m_lastActivity.secsTo(QDateTime::currentDateTime()) > 15) {
+        m_heartbeatCount++;
+        if (m_heartbeatCount >= 3)
+        {
             qWarning() << "Timeout Heartbeat. Disconnect client.";
             m_socket->abort();
         }
     });
+    m_heartbeatTimer->start(5000);
 
 
     QString connName = "db_conn_" + QString::number((quintptr)QThread::currentThreadId());
@@ -49,7 +53,7 @@ void ClientHandler::startProcessing()
 
 void ClientHandler::onReadyRead()
 {
-    resetHeartbeatTimeout();
+    m_heartbeatCount = 0;
     m_buffer.append(m_socket->readAll());
     while(m_buffer.contains('\n'))
     {
@@ -82,10 +86,6 @@ void ClientHandler::onDisconnected()
     emit finished();
 }
 
-void ClientHandler::resetHeartbeatTimeout()
-{
-    m_lastActivity = QDateTime::currentDateTime();
-}
 
 void ClientHandler::processJson(const json &j)
 {
@@ -189,8 +189,8 @@ bool ClientHandler::initDatabase()
 
     QSqlQuery query(m_db);
     if(!query.exec("CREATE TABLE IF NOT EXISTS users("
-               "id INTEGER PRIMARY KEY AUTOINCREMENT,"
-               "username TEXT NOT NULL,"
+                   "id INTEGER PRIMARY KEY AUTOINCREMENT,"
+                   "username TEXT NOT NULL,"
                    "email TEXT NOT NULL UNIQUE)"))
     {
         qCritical() << "Error creating table: " << query.lastError().text();
