@@ -91,14 +91,7 @@ void ClientHandler::processJson(const json &j)
 {
     std::string action = j.value("action", "");
 
-    if(action == "ping")
-    {
-        json res;
-        res["status"] = "ok";
-        res["action"] = "pong";
-        sendResponse(res);
-    }
-    else if(action == "add_user")
+    if(action == "add_user")
     {
         handleAddUser(j);
     }
@@ -122,7 +115,13 @@ void ClientHandler::handleAddUser(const json &j)
     std::string username = j.value("username", "");
     std::string email = j.value("email", "");
 
-    // возможно добавить проверку на пустые строки.
+    if(username.empty() || email.empty())
+    {
+        res["status"] = "error";
+        res["message"] = "Fields cannot be empty!";
+        sendResponse(res);
+        return;
+    }
 
     QSqlQuery query(m_db);
     query.prepare("INSERT INTO users (username, email) VALUES (:username, :email)");
