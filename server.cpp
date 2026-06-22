@@ -34,8 +34,8 @@ void Server::onNewConnection()
     handler->moveToThread(thread);
 
     connect(thread, &QThread::started, handler, &ClientHandler::startProcessing);
-    connect(handler, &ClientHandler::finished, thread, &QThread::quit);
     connect(handler, &ClientHandler::finished, handler, &ClientHandler::deleteLater);
+    connect(handler, &QObject::destroyed, thread, &QThread::quit);
     connect(thread, &QThread::finished, thread, &QThread::deleteLater);
 
     thread->start();
